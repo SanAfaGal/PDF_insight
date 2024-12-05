@@ -183,16 +183,28 @@ def combine_pdfs(pdf_paths, output_path):
 
 
 def determine_file_type(text, keywords, similarity_threshold=80):
-    """Determines the file type based on keywords and fuzzy matching."""
+    """Determines the file type based on keywords and fuzzy matching,
+    selecting the most relevant one."""
+
     normalized_text = unidecode(text).lower()
+    best_match_file_type = None
+    highest_similarity = 0  # Almacenará la mejor coincidencia encontrada
+
     for file_type, keyword_list in keywords.items():
         for keyword in keyword_list:
             normalized_keyword = unidecode(keyword).lower()
+
+            # Comprueba si el keyword está en el texto
             if normalized_keyword in normalized_text:
-                return file_type
-            if fuzz.partial_ratio(normalized_text, normalized_keyword) >= similarity_threshold:
-                return file_type
-    return None
+                return file_type  # Si la palabra clave exacta se encuentra, se retorna inmediatamente
+
+            # Compara la similitud con el umbral
+            similarity = fuzz.partial_ratio(normalized_text, normalized_keyword)
+            if similarity >= similarity_threshold and similarity > highest_similarity:
+                best_match_file_type = file_type
+                highest_similarity = similarity
+
+    return best_match_file_type
 
 
 # --- File Renaming ---
