@@ -49,7 +49,9 @@ EPS_CONFIG = {
         "KEYWORDS": {
             "FVS": ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
             "EPI": ["HISTORIA ELECTRONICA"],
-            "OTR": ["CONSULTA DEL ESTADO DE AFILIACION", "AUTORIZAR OTROS SERVICIOS"],
+            "OTR": ["CONSULTA DEL ESTADO DE AFILIACION",
+                    "AUTORIZAR OTROS SERVICIOS",
+                    "SOLICITUD AUTORIZACION"],
             "OPF": ["ORDENACION DE PROCEDIMIENTOS"],
             "CRC": ["COMPROBANTE DE RECIBIDO DE SERVICIOS MEDICOS"],
         },
@@ -240,36 +242,7 @@ def rename_pdf(pdf_path, folder_name, eps_config):
     Renames the PDF file based on the EPS configuration and the extracted text.
     This function has been modularized into smaller helper functions.
     """
-    invoice = extract_invoice_number(folder_name)
-    if not invoice:
-        error_logger.error(f"No valid invoice number found in folder name {folder_name}. Skipping {pdf_path}.")
-        return
-
-    # Step 1: Handle PDF splitting
-    page_paths = handle_pdf_splitting(pdf_path)
-    if not page_paths:
-        return
-
-    # Step 2: Extract text or apply OCR if necessary
-    text, pdf_path = extract_text_or_apply_ocr(pdf_path)
-    if text is None:
-        return
-
-    # Step 3: Process text to determine the file type
-    file_type = process_text_for_file_type(text, eps_config)
-    if not file_type:
-        error_logger.error(f"No valid keyword found in {pdf_path}. Skipping.")
-        return
-
-    # Step 4: Generate new file path
-    new_pdf_path = generate_new_file_path(pdf_path, file_type, invoice, eps_config)
-
-    # Step 5: Rename the PDF
-    try:
-        os.rename(pdf_path, new_pdf_path)
-        info_logger.info(f"Renamed {pdf_path} to {new_pdf_path}")
-    except Exception as e:
-        error_logger.error(f"Error renaming {pdf_path}: {e}")
+    None
 
 
 # --- Main Processing ---
@@ -281,7 +254,7 @@ def process_input(input_path, eps_name):
         return
 
     if os.path.isdir(input_path):
-        # Add a temporary prefix to all PDFs before processing
+        # Add a prefix to all PDFs before processing
         for root, _, files in os.walk(input_path):
             for file in files:
                 if file.endswith('.pdf'):
@@ -292,12 +265,57 @@ def process_input(input_path, eps_name):
                     except Exception as e:
                         error_logger.error(f"Error adding temporary prefix to {pdf_path}: {e}")
 
-        # Process the temporarily renamed files
+        # Split PDF
         for root, _, files in os.walk(input_path):
             for file in files:
                 if file.startswith('original_') and file.endswith('.pdf'):
                     pdf_path = os.path.join(root, file)
-                    rename_pdf(pdf_path, os.path.basename(root), eps_config)
+                    page_paths = handle_pdf_splitting(pdf_path)
+
+        # Extract text ot apply OCR
+        for root, _, files in os.walk(input_path):
+            for file in files:
+                if file.endswith('.pdf'):
+                    pdf_path = os.path.join(root, file)
+                    text, pdf_path = extract_text_or_apply_ocr(pdf_path)
+
+        # Combine pages of the same type into a single PDF and rename it
+        for root, _, files in os.walk(input_path):
+            file_type_to_pages = {}
+            for file in files:
+                folder_name = os.path.basename(root)
+                invoice = extract_invoice_number(folder_name)
+                if not invoice:
+                    error_logger.error(
+                        f"No valid invoice number found in folder name {folder_name}. Skipping {pdf_path}.")
+
+                pdf_path = os.path.join(root, file)
+                text = extract_text_from_pdf(pdf_path)
+
+                if not text:
+                    error_logger.error(f"Failed to extract text from {pdf_path}. Skipping.")
+
+                # Step 3: Process text to determine the file type
+                file_type = process_text_for_file_type(text, eps_config)
+                if not file_type:
+                    error_logger.error(f"No valid keyword found in {pdf_path}. Skipping.")
+
+                if file_type:
+                    file_type_to_pages.setdefault(file_type, []).append(pdf_path)
+
+            for file_type, related_pages in file_type_to_pages.items():
+                combined_path = os.path.join(os.path.dirname(pdf_path), f"combined_{file_type}.pdf")
+                combine_pdfs(related_pages, combined_path)
+
+                # Step 4: Rename the combined file
+                new_pdf_path = generate_new_file_path(pdf_path, file_type, invoice, eps_config)
+
+                try:
+                    os.rename(combined_path, new_pdf_path)
+                    info_logger.info(f"Renamed {combined_path} to {new_pdf_path}")
+                except Exception as e:
+                    error_logger.error(f"Error renaming {combined_path}: {e}")
+
     elif os.path.isfile(input_path):
         rename_pdf(input_path, os.path.basename(os.path.dirname(input_path)), eps_config)
     else:
@@ -326,7 +344,7 @@ if __name__ == "__main__":
     # Valores por defecto para pruebas
     if len(sys.argv) == 1:
         eps = "NUEVA EPS"
-        file = r"C:\Users\sanaf\Downloads\ELE46680"
+        file = r"D:\HOSPITAL\NUEVA EPS\CONTRIBUTIVO\ELE46392"
         sys.argv.extend([eps, file])
         # sys.argv.extend(["SALUD TOTAL", r"D:\HOSPITAL\SALUD TOTAL\CONTRIBUTIVO\ELE46439"])
 
