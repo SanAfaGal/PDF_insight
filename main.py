@@ -48,12 +48,17 @@ EPS_CONFIG = {
         "PREFIX": DEFAULT_PREFIX,
         "KEYWORDS": {
             "FVS": ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
-            "EPI": ["HISTORIA ELECTRONICA"],
+            "EPI": ["HISTORIA ELECTRONICA", "REGISTRO PROFESIONAL", "NOTAS"],
             "OTR": ["CONSULTA DEL ESTADO DE AFILIACION",
+                    "RESOLUCION NO",
+                    "TRASLADO ASISTENCIAL",
                     "AUTORIZAR OTROS SERVICIOS",
+                    "FORMATO DE BITACORA DE REMISIONES",
+                    "CODIGO DESCRIPCION",
                     "SOLICITUD AUTORIZACION"],
             "OPF": ["ORDENACION DE PROCEDIMIENTOS"],
             "CRC": ["COMPROBANTE DE RECIBIDO DE SERVICIOS MEDICOS"],
+            # "PDX": [""],
         },
         "FILENAME_FORMAT": "{file_type}_{NIT}_{PREFIX}{invoice}.pdf"
     },
@@ -86,7 +91,9 @@ def extract_invoice_number(folder_name):
 
 
 def clean_text(text):
-    """Removes extra whitespace from text."""
+    """Removes extra whitespace from text. Returns empty string if text is None."""
+    if text is None:
+        return ""
     return re.sub(r'\s{2,}', ' ', text)
 
 
@@ -96,6 +103,15 @@ def extract_text_from_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as file:
             reader = PdfReader(file)
+            # writer = PdfWriter()
+            # for page in reader.pages:
+                # print("rotation:" + str(page.get('/Rotate')))
+                # page.rotate(0)
+                # writer.add_page(page)
+
+            # with open(pdf_path, "wb") as corrected_file:
+            #     writer.write(corrected_file)
+
             return "".join(page.extract_text() or "" for page in reader.pages)
     except PdfReadError as e:
         error_logger.error(f"Error reading PDF {pdf_path}: {e}")
@@ -108,7 +124,7 @@ def apply_ocr(pdf_path):
     """Applies OCR to a PDF and returns the path to the searchable PDF."""
     try:
         output_path = f"{os.path.splitext(pdf_path)[0]}_searchable.pdf"
-        ocrmypdf.ocr(pdf_path, output_path)
+        ocrmypdf.ocr(pdf_path, output_path, deskew=True)
         os.remove(pdf_path)
         return output_path
     except Exception as e:
@@ -291,6 +307,7 @@ def process_input(input_path, eps_name):
 
                 pdf_path = os.path.join(root, file)
                 text = extract_text_from_pdf(pdf_path)
+                # print(text)
 
                 if not text:
                     error_logger.error(f"Failed to extract text from {pdf_path}. Skipping.")
@@ -344,7 +361,7 @@ if __name__ == "__main__":
     # Valores por defecto para pruebas
     if len(sys.argv) == 1:
         eps = "NUEVA EPS"
-        file = r"D:\HOSPITAL\NUEVA EPS\CONTRIBUTIVO\ELE46392"
+        file = r"D:\HOSPITAL\NUEVA EPS\CONTRIBUTIVO\ELE47034"
         sys.argv.extend([eps, file])
         # sys.argv.extend(["SALUD TOTAL", r"D:\HOSPITAL\SALUD TOTAL\CONTRIBUTIVO\ELE46439"])
 
