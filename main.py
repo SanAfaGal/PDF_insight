@@ -104,9 +104,9 @@ def extract_text_from_pdf(pdf_path):
             reader = PdfReader(file)
             # writer = PdfWriter()
             # for page in reader.pages:
-                # print("rotation:" + str(page.get('/Rotate')))
-                # page.rotate(0)
-                # writer.add_page(page)
+            # print("rotation:" + str(page.get('/Rotate')))
+            # page.rotate(0)
+            # writer.add_page(page)
 
             # with open(pdf_path, "wb") as corrected_file:
             #     writer.write(corrected_file)
@@ -322,8 +322,8 @@ def process_pdfs(input_path, eps_config):
 
 def combine_and_rename_pdfs(input_path, eps_config):
     """Combines PDFs by file type and renames the output file."""
-    file_type_to_pages = {}
     for root, _, files in os.walk(input_path):
+        file_type_to_pages = {}
         for file in files:
             folder_name = os.path.basename(root)
             invoice = extract_invoice_number(folder_name)
@@ -345,16 +345,16 @@ def combine_and_rename_pdfs(input_path, eps_config):
 
             file_type_to_pages.setdefault(file_type, []).append(pdf_path)
 
-    for file_type, related_pages in file_type_to_pages.items():
-        combined_path = os.path.join(os.path.dirname(pdf_path), f"combined_{file_type}.pdf")
-        combine_pdfs(related_pages, combined_path)
+        for file_type, related_pages in file_type_to_pages.items():
+            combined_path = os.path.join(os.path.dirname(pdf_path), f"combined_{file_type}.pdf")
+            combine_pdfs(related_pages, combined_path)
 
-        new_pdf_path = generate_new_file_path(pdf_path, file_type, invoice, eps_config)
-        try:
-            os.rename(combined_path, new_pdf_path)
-            info_logger.info(f"Renamed {combined_path} to {new_pdf_path}")
-        except Exception as e:
-            error_logger.error(f"Error renaming {combined_path}: {e}")
+            new_pdf_path = generate_new_file_path(pdf_path, file_type, invoice, eps_config)
+            try:
+                os.rename(combined_path, new_pdf_path)
+                info_logger.info(f"Renamed {combined_path} to {new_pdf_path}")
+            except Exception as e:
+                error_logger.error(f"Error renaming {combined_path}: {e}")
 
 
 # --- Entry Point ---
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     # Valores por defecto para pruebas
     if len(sys.argv) == 1:
         eps = "NUEVA EPS"
-        file = r"D:\HOSPITAL\NUEVA EPS\SUBSIDIADO\ELE46339"
+        file = r"D:\HOSPITAL\NUEVA EPS\SUBSIDIADO"
         sys.argv.extend([eps, file])
 
     main()
