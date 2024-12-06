@@ -15,6 +15,29 @@ A Python-based application designed to process and rename PDF files based on EPS
 - **rapidfuzz**: Implements fuzzy matching for text processing.
 - **logging**: For structured application logging.
 
+## Prerequisites 🔧
+
+### 1. Install Tesseract
+Download and install Tesseract OCR from [UB-Mannheim's Tesseract repository](https://github.com/UB-Mannheim/tesseract/wiki).  
+After installation, add the following to your system's **Environment Variables** (PATH):
+```
+C:\Program Files\Tesseract-OCR
+```
+
+### 2. Install Ghostscript
+Download and install Ghostscript from the [official Ghostscript website](https://ghostscript.com/releases/gsdnld.html).  
+After installation, add the `bin` directory to your system's **Environment Variables** (PATH):
+```
+C:\Program Files\gs\gs10.04.0\bin
+```
+
+### 3. Verify Installations
+Run the following commands in a terminal to verify installations:
+```bash
+tesseract --version
+gswin64c --version
+```
+
 ## Installation 📦
 
 1. **Clone the repository**:
