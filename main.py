@@ -13,7 +13,7 @@ from unidecode import unidecode
 # --- Logging Configuration ---
 def setup_logging():
     """Sets up logging for the application."""
-    logging.basicConfig(level=logging.INFO)
+    # logging.basicConfig(level=logging.INFO)
     info_logger = logging.getLogger("info_logger")
     error_logger = logging.getLogger("error_logger")
 
@@ -37,7 +37,6 @@ def setup_logging():
 
 
 info_logger, error_logger = setup_logging()
-
 
 DEFAULT_CONFIG = {
     "NIT": "890702241",
@@ -131,16 +130,35 @@ def extract_text_from_pdf(pdf_path):
     return None
 
 
+def extract_patient_id(text):
+    """
+    Extracts the patient ID from the text using a regex pattern.
+    The ID can have formats like TI-123456789, CC-123456789, etc.
+
+    Args:
+        text (str): The text to search for the patient ID.
+
+    Returns:
+        str: The extracted patient ID, or None if not found.
+    """
+    # Expresión regular para buscar patrones de documento de identidad
+    id_pattern = r"(TI|CC|RC)-(\d{5,15})"
+    match = re.search(id_pattern, text)
+    if match:
+        return match.group(2)
+    return None
+
+
 def apply_ocr(pdf_path):
     """Applies OCR to a PDF and returns the path to the searchable PDF."""
     try:
         output_path = f"{os.path.splitext(pdf_path)[0]}_searchable.pdf"
         ocrmypdf.ocr(pdf_path, output_path, deskew=True)
         os.remove(pdf_path)
-        return output_path
+        return
     except Exception as e:
         error_logger.error(f"Error applying OCR to {pdf_path}: {e}")
-        return None
+        return
 
 
 def split_pdf_by_page(pdf_path):
@@ -236,14 +254,8 @@ def extract_text_or_apply_ocr(pdf_path):
     """Tries to extract text from PDF, applies OCR if text is not found."""
     text = extract_text_from_pdf(pdf_path)
     if not text:
-        ocr_pdf_path = apply_ocr(pdf_path)
-        if ocr_pdf_path:
-            pdf_path = ocr_pdf_path
-            info_logger.info(f"OCR applied, new file is {pdf_path}")
-            text = extract_text_from_pdf(pdf_path)
-        else:
-            error_logger.error(f"Failed to apply OCR to {pdf_path}. Skipping.")
-            return
+        apply_ocr(pdf_path)
+        info_logger.info(f"OCR applied")
     return
 
 
@@ -252,14 +264,14 @@ def handle_pdf_splitting(pdf_path):
     page_paths = split_pdf_by_page(pdf_path)
     if not page_paths:
         error_logger.error(f"Failed to split {pdf_path}. Skipping.")
-        return None
+        return
     if len(page_paths) > 1:
         try:
             os.remove(pdf_path)
             info_logger.info(f"Deleted original file after splitting: {pdf_path}")
         except Exception as e:
             error_logger.error(f"Error deleting original file {pdf_path}: {e}")
-    return page_paths
+    return
 
 
 def process_text_for_file_type(text, eps_config):
@@ -320,7 +332,7 @@ def split_pdfs(input_path):
         for file in files:
             if file.startswith('original_') and file.endswith('.pdf'):
                 pdf_path = os.path.join(root, file)
-                page_paths = handle_pdf_splitting(pdf_path)
+                handle_pdf_splitting(pdf_path)
 
 
 def process_pdfs(input_path, eps_config):
@@ -339,13 +351,14 @@ def combine_and_rename_pdfs(input_path, eps_config):
         for file in files:
             folder_name = os.path.basename(root)
             invoice = extract_invoice_number(folder_name)
+
             if not invoice:
                 error_logger.error(f"No valid invoice number found in folder name {folder_name}. Skipping {file}.")
                 continue
 
             pdf_path = os.path.join(root, file)
             text = extract_text_from_pdf(pdf_path)
-            print(text)
+
 
             if not text:
                 error_logger.error(f"Failed to extract text from {pdf_path}. Skipping.")
@@ -355,6 +368,13 @@ def combine_and_rename_pdfs(input_path, eps_config):
             if not file_type:
                 error_logger.error(f"No valid keyword found in {pdf_path}. Skipping.")
                 continue
+
+            patient_id = extract_patient_id(clean_text(text))
+
+            if patient_id:
+                print(f"{invoice}, {patient_id}")
+            else:
+                info_logger.warning(f"No Patient ID found in text for file type {file_type}")
 
             file_type_to_pages.setdefault(file_type, []).append(pdf_path)
 
@@ -392,7 +412,7 @@ if __name__ == "__main__":
     # Valores por defecto para pruebas
     if len(sys.argv) == 1:
         eps = "SALUD TOTAL"
-        file = r"C:\Users\sanaf\Downloads\ELE47681"
+        file = r"D:\HOSPITAL\SALUD TOTAL\SUBSIDIADO\ELE47722"
         sys.argv.extend([eps, file])
 
     main()
