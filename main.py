@@ -38,41 +38,53 @@ def setup_logging():
 
 info_logger, error_logger = setup_logging()
 
-# --- Constants ---
-DEFAULT_NIT = "890702241"
-DEFAULT_PREFIX = "ELE"
+
+DEFAULT_CONFIG = {
+    "NIT": "890702241",
+    "PREFIX": "ELE",
+}
+
+KEYWORDS = {
+    "FACTURA": ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
+    "EPICRISIS": ["HISTORIA ELECTRONICA"],
+    "TRASLADO": ["FORMATO DE BITACORA DE REMISIONES"],
+    "RESOLUCION": ["RESOLUCION NO"],
+    "OTROS": ["CONSULTA DEL ESTADO DE AFILIACION", "TRASLADO ASISTENCIAL",
+              "AUTORIZAR OTROS SERVICIOS", "SOLICITUD AUTORIZACION"],
+    "ORDEN_MEDICA": ["ORDENACION DE PROCEDIMIENTOS", "ORDENES MEDICAS",
+                     "ORDEN MEDICA DE EGRESO", "MEDICO QUE ORDENA"],
+    "COMPROBANTE": ["COMPROBANTE DE RECIBIDO DE SERVICIOS MEDICOS"],
+    "RESULTADOS": ["RX", "CURACIONES", "ELECTROCARDIOGRAMA"],
+    "ADRES": ["ADRES"]
+}
+
+COMPOSITIONS = {
+    "TRASLADO_Y_RESOLUCION": KEYWORDS["TRASLADO"] + KEYWORDS["RESOLUCION"]
+}
 
 EPS_CONFIG = {
     "NUEVA EPS": {
-        "NIT": DEFAULT_NIT,
-        "PREFIX": DEFAULT_PREFIX,
-        "KEYWORDS": {
-            "FVS": ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
-            "EPI": ["HISTORIA ELECTRONICA", "REGISTRO PROFESIONAL", "NOTAS"],
-            "OTR": ["CONSULTA DEL ESTADO DE AFILIACION",
-                    "RESOLUCION NO",
-                    "TRASLADO ASISTENCIAL",
-                    "AUTORIZAR OTROS SERVICIOS",
-                    "AUTORIZACION SERVICIOS",
-                    "FORMATO DE BITACORA DE REMISIONES",
-                    "CODIGO DESCRIPCION",
-                    "SOLICITUD AUTORIZACION"],
-            "OPF": ["ORDENACION DE PROCEDIMIENTOS", "ORDENES MEDICAS", "ORDEN MEDICA DE EGRESO"],
-            "CRC": ["COMPROBANTE DE RECIBIDO DE SERVICIOS MEDICOS"],
-            # "PDX": [""],
+        **DEFAULT_CONFIG,
+        "TYPES": {
+            "FVS": KEYWORDS["FACTURA"],
+            "EPI": KEYWORDS["EPICRISIS"],
+            "TAP": KEYWORDS["TRASLADO"],
+            "OTR": KEYWORDS["OTROS"],
+            "OPF": KEYWORDS["ORDEN_MEDICA"],
+            "CRC": KEYWORDS["COMPROBANTE"],
+            # "PDX": KEYWORDS["RESULTADOS"],
         },
         "FILENAME_FORMAT": "{file_type}_{NIT}_{PREFIX}{invoice}.pdf"
     },
     "SALUD TOTAL": {
-        "NIT": DEFAULT_NIT,
-        "PREFIX": DEFAULT_PREFIX,
-        "SUFFIX": "1",
-        "KEYWORDS": {
-            1: ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
-            5: ["HISTORIA ELECTRONICA"],
-            14: ["FORMATO DE BITACORA DE REMISIONES"],
-            15: ["COMPROBANTE DE RECIBIDO DE SERVICIOS MEDICOS"],
-            17: ["ADRES"]
+        **DEFAULT_CONFIG,
+        "TYPES": {
+            1: KEYWORDS["FACTURA"],
+            5: KEYWORDS["EPICRISIS"],
+            # 7: KEYWORDS["RESULTADOS"],
+            14: COMPOSITIONS["TRASLADO_Y_RESOLUCION"],
+            15: KEYWORDS["COMPROBANTE"],
+            17: KEYWORDS["ADRES"],
         },
         "FILENAME_FORMAT": "{NIT}_{PREFIX}_{invoice}_{file_type}_{SUFFIX}.pdf"
     }
@@ -231,8 +243,8 @@ def extract_text_or_apply_ocr(pdf_path):
             text = extract_text_from_pdf(pdf_path)
         else:
             error_logger.error(f"Failed to apply OCR to {pdf_path}. Skipping.")
-            return None, None
-    return text, pdf_path
+            return
+    return
 
 
 def handle_pdf_splitting(pdf_path):
@@ -253,7 +265,7 @@ def handle_pdf_splitting(pdf_path):
 def process_text_for_file_type(text, eps_config):
     """Cleans text and determines the file type based on keywords."""
     cleaned_text = clean_text(text)
-    file_type = determine_file_type(cleaned_text, eps_config["KEYWORDS"])
+    file_type = determine_file_type(cleaned_text, eps_config["TYPES"])
     return file_type
 
 
@@ -317,7 +329,7 @@ def process_pdfs(input_path, eps_config):
         for file in files:
             if file.endswith('.pdf'):
                 pdf_path = os.path.join(root, file)
-                text, pdf_path = extract_text_or_apply_ocr(pdf_path)
+                extract_text_or_apply_ocr(pdf_path)
 
 
 def combine_and_rename_pdfs(input_path, eps_config):
@@ -333,6 +345,7 @@ def combine_and_rename_pdfs(input_path, eps_config):
 
             pdf_path = os.path.join(root, file)
             text = extract_text_from_pdf(pdf_path)
+            print(text)
 
             if not text:
                 error_logger.error(f"Failed to extract text from {pdf_path}. Skipping.")
@@ -378,8 +391,8 @@ if __name__ == "__main__":
 
     # Valores por defecto para pruebas
     if len(sys.argv) == 1:
-        eps = "NUEVA EPS"
-        file = r"D:\HOSPITAL\NUEVA EPS\SUBSIDIADO"
+        eps = "SALUD TOTAL"
+        file = r"C:\Users\sanaf\Downloads\ELE47681"
         sys.argv.extend([eps, file])
 
     main()
