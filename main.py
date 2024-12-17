@@ -1,7 +1,7 @@
 import argparse
-import logging
 import os
 import re
+from typing import Dict, List, Optional
 
 import ocrmypdf
 from PyPDF2 import PdfReader, PdfWriter
@@ -9,85 +9,10 @@ from PyPDF2.errors import PdfReadError
 from rapidfuzz import fuzz
 from unidecode import unidecode
 
-
-# --- Logging Configuration ---
-def setup_logging():
-    """Sets up logging for the application."""
-    # logging.basicConfig(level=logging.INFO)
-    info_logger = logging.getLogger("info_logger")
-    error_logger = logging.getLogger("error_logger")
-
-    # Handlers
-    info_handler = logging.FileHandler("info.log")
-    error_handler = logging.FileHandler("error.log")
-
-    # Formatter
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    info_handler.setFormatter(formatter)
-    error_handler.setFormatter(formatter)
-
-    # Assign levels
-    info_handler.setLevel(logging.INFO)
-    error_handler.setLevel(logging.ERROR)
-
-    info_logger.addHandler(info_handler)
-    error_logger.addHandler(error_handler)
-
-    return info_logger, error_logger
-
+from config import *
+from utils.log_utils import setup_logging
 
 info_logger, error_logger = setup_logging()
-
-DEFAULT_CONFIG = {
-    "NIT": "890702241",
-    "PREFIX": "ELE",
-}
-
-KEYWORDS = {
-    "FACTURA": ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
-    "EPICRISIS": ["HISTORIA ELECTRONICA"],
-    "TRASLADO": ["FORMATO DE BITACORA DE REMISIONES"],
-    "RESOLUCION": ["RESOLUCION NO"],
-    "OTROS": ["CONSULTA DEL ESTADO DE AFILIACION", "TRASLADO ASISTENCIAL",
-              "AUTORIZAR OTROS SERVICIOS", "SOLICITUD AUTORIZACION"],
-    "ORDEN_MEDICA": ["ORDENACION DE PROCEDIMIENTOS", "ORDENES MEDICAS",
-                     "ORDEN MEDICA DE EGRESO", "MEDICO QUE ORDENA"],
-    "COMPROBANTE": ["COMPROBANTE DE RECIBIDO DE SERVICIOS MEDICOS"],
-    "RESULTADOS": ["RX", "CURACIONES", "ELECTROCARDIOGRAMA"],
-    "ADRES": ["ADRES"]
-}
-
-COMPOSITIONS = {
-    "TRASLADO_Y_RESOLUCION": KEYWORDS["TRASLADO"] + KEYWORDS["RESOLUCION"]
-}
-
-EPS_CONFIG = {
-    "NUEVA EPS": {
-        **DEFAULT_CONFIG,
-        "TYPES": {
-            "FVS": KEYWORDS["FACTURA"],
-            "EPI": KEYWORDS["EPICRISIS"],
-            "TAP": KEYWORDS["TRASLADO"],
-            "OTR": KEYWORDS["OTROS"],
-            "OPF": KEYWORDS["ORDEN_MEDICA"],
-            "CRC": KEYWORDS["COMPROBANTE"],
-            # "PDX": KEYWORDS["RESULTADOS"],
-        },
-        "FILENAME_FORMAT": "{file_type}_{NIT}_{PREFIX}{invoice}.pdf"
-    },
-    "SALUD TOTAL": {
-        **DEFAULT_CONFIG,
-        "TYPES": {
-            1: KEYWORDS["FACTURA"],
-            5: KEYWORDS["EPICRISIS"],
-            # 7: KEYWORDS["RESULTADOS"],
-            14: COMPOSITIONS["TRASLADO_Y_RESOLUCION"],
-            15: KEYWORDS["COMPROBANTE"],
-            17: KEYWORDS["ADRES"],
-        },
-        "FILENAME_FORMAT": "{NIT}_{PREFIX}_{invoice}_{file_type}_{SUFFIX}.pdf"
-    }
-}
 
 
 # --- Utility Functions ---
@@ -113,15 +38,6 @@ def extract_text_from_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as file:
             reader = PdfReader(file)
-            # writer = PdfWriter()
-            # for page in reader.pages:
-            # print("rotation:" + str(page.get('/Rotate')))
-            # page.rotate(0)
-            # writer.add_page(page)
-
-            # with open(pdf_path, "wb") as corrected_file:
-            #     writer.write(corrected_file)
-
             return "".join(page.extract_text() or "" for page in reader.pages)
     except PdfReadError as e:
         error_logger.error(f"Error reading PDF {pdf_path}: {e}")
@@ -142,6 +58,7 @@ def extract_patient_id(text):
         str: The extracted patient ID, or None if not found.
     """
     # Expresión regular para buscar patrones de documento de identidad
+    text = re.sub(r"\s+", "", text)
     id_pattern = r"(TI|CC|RC)-(\d{5,15})"
     match = re.search(id_pattern, text)
     if match:
@@ -243,7 +160,7 @@ def generate_new_filename(invoice, file_type, eps_config):
     return eps_config["FILENAME_FORMAT"].format(
         file_type=file_type,
         NIT=eps_config["NIT"],
-        PREFIX=eps_config["PREFIX"],
+        PREFIX=eps_config.get("PREFIX", ""),
         invoice=invoice,
         SUFFIX=eps_config.get("SUFFIX", "")
     )
@@ -289,28 +206,28 @@ def generate_new_file_path(pdf_path, file_type, invoice, eps_config):
 
 
 # --- Main Processing ---
-def process_input(input_path, eps_name):
-    """Processes a folder or single PDF file and renames files based on EPS configuration."""
-    eps_config = EPS_CONFIG.get(eps_name)
-    if not eps_config:
-        error_logger.error(f"Unsupported EPS: {eps_name}")
-        return
-
-    if os.path.isdir(input_path):
-        # Add a prefix to all PDFs before processing
-        rename_pdfs_with_prefix(input_path)
-
-        # Split PDF files if necessary
-        split_pdfs(input_path)
-
-        # Extract text or apply OCR if text extraction fails
-        process_pdfs(input_path, eps_config)
-
-        # Combine PDFs by file type, rename, and handle the output
-        combine_and_rename_pdfs(input_path, eps_config)
-
-    else:
-        error_logger.error(f"Invalid path: {input_path}")
+# def process_input(input_path, eps_name):
+#     """Processes a folder or single PDF file and renames files based on EPS configuration."""
+#     eps_config = EPS_CONFIG.get(eps_name)
+#     if not eps_config:
+#         error_logger.error(f"Unsupported EPS: {eps_name}")
+#         return
+#
+#     if os.path.isdir(input_path):
+#         # Add a prefix to all PDFs before processing
+#         rename_pdfs_with_prefix(input_path)
+#
+#         # Split PDF files if necessary
+#         split_pdfs(input_path)
+#
+#         # Extract text or apply OCR if text extraction fails
+#         process_pdfs(input_path, eps_config)
+#
+#         # Combine PDFs by file type, rename, and handle the output
+#         combine_and_rename_pdfs(input_path, eps_config)
+#
+#     else:
+#         error_logger.error(f"Invalid path: {input_path}")
 
 
 def rename_pdfs_with_prefix(input_path):
@@ -344,50 +261,92 @@ def process_pdfs(input_path, eps_config):
                 extract_text_or_apply_ocr(pdf_path)
 
 
-def combine_and_rename_pdfs(input_path, eps_config):
-    """Combines PDFs by file type and renames the output file."""
-    for root, _, files in os.walk(input_path):
-        file_type_to_pages = {}
-        for file in files:
-            folder_name = os.path.basename(root)
-            invoice = extract_invoice_number(folder_name)
+def process_pdf_file(pdf_path: str, eps_config: Dict) -> Optional[Dict]:
+    """
+    Procesa un archivo PDF para extraer información relevante como tipo de archivo, número de factura y Patient ID.
 
-            if not invoice:
-                error_logger.error(f"No valid invoice number found in folder name {folder_name}. Skipping {file}.")
-                continue
+    Args:
+        pdf_path (str): Ruta del archivo PDF.
+        eps_config (Dict): Configuración de mapeos de tipos de archivo.
 
-            pdf_path = os.path.join(root, file)
-            text = extract_text_from_pdf(pdf_path)
+    Returns:
+        Optional[Dict]: Diccionario con 'file_type', 'invoice', y 'patient_id', o None si hay errores.
+    """
+    try:
+        folder_name = os.path.basename(os.path.dirname(pdf_path))
+        invoice = extract_invoice_number(folder_name)
+
+        if not invoice:
+            error_logger.error(f"No valid invoice number found in folder name {folder_name}. Skipping {pdf_path}.")
+
+        text = extract_text_from_pdf(pdf_path)
+
+        if not text:
+            error_logger.error(f"Failed to extract text from {pdf_path}. Skipping.")
+
+        file_type = process_text_for_file_type(text, eps_config)
+
+        if not file_type:
+            error_logger.error(f"No valid keyword found in {pdf_path}. Skipping.")
+
+        patient_id = extract_patient_id(text)
+
+        if not patient_id:
+            info_logger.warning(f"No Patient ID found in text for file type {file_type}")
+
+        return {'file_type': file_type, 'invoice': invoice, 'patient_id': patient_id}
+
+    except Exception as e:
+        error_logger.error(f"Error processing {pdf_path}: {e}")
 
 
-            if not text:
-                error_logger.error(f"Failed to extract text from {pdf_path}. Skipping.")
-                continue
+def combine_pdfs_by_type(file_type_to_pages: Dict[str, List[str]], eps_config: Dict) -> None:
+    """
+    Combina PDF por tipo de archivo y renombra los archivos combinados.
 
-            file_type = process_text_for_file_type(text, eps_config)
-            if not file_type:
-                error_logger.error(f"No valid keyword found in {pdf_path}. Skipping.")
-                continue
+    Args:
+        file_type_to_pages (Dict): Diccionario que asocia tipos de archivo a sus rutas.
+        eps_config (Dict): Configuración de mapeos de tipos de archivo.
 
-            patient_id = extract_patient_id(clean_text(text))
+    """
+    for file_type, related_pages in file_type_to_pages.items():
+        combined_path = os.path.join(os.path.dirname(related_pages[0]), f"combined_{file_type}.pdf")
+        combine_pdfs(related_pages, combined_path)
 
-            if patient_id:
-                print(f"{invoice}, {patient_id}")
-            else:
-                info_logger.warning(f"No Patient ID found in text for file type {file_type}")
+        invoice = extract_invoice_number(os.path.basename(os.path.dirname(related_pages[0])))
+        new_pdf_path = generate_new_file_path(related_pages[0], file_type, invoice, eps_config)
 
-            file_type_to_pages.setdefault(file_type, []).append(pdf_path)
+        try:
+            os.rename(combined_path, new_pdf_path)
+            info_logger.info(f"Renamed {combined_path} to {new_pdf_path}")
+        except Exception as e:
+            error_logger.error(f"Error renaming {combined_path}: {e}")
 
-        for file_type, related_pages in file_type_to_pages.items():
-            combined_path = os.path.join(os.path.dirname(pdf_path), f"combined_{file_type}.pdf")
-            combine_pdfs(related_pages, combined_path)
 
-            new_pdf_path = generate_new_file_path(pdf_path, file_type, invoice, eps_config)
-            try:
-                os.rename(combined_path, new_pdf_path)
-                info_logger.info(f"Renamed {combined_path} to {new_pdf_path}")
-            except Exception as e:
-                error_logger.error(f"Error renaming {combined_path}: {e}")
+def combine_and_rename_pdfs(input_path: str, eps_config: Dict) -> None:
+    """
+    Combina PDFs por tipo de archivo y renombra los archivos combinados.
+
+    Args:
+        input_path (str): Path to the input directory or file.
+        eps_config (Dict): Configuration dictionary containing file type mappings.
+
+    """
+    try:
+        for root, _, files in os.walk(input_path):
+            file_type_to_pages = {}
+            for file in files:
+                pdf_path = os.path.join(root, file)
+                result = process_pdf_file(pdf_path, eps_config)
+
+                if result:
+                    file_type_to_pages.setdefault(result['file_type'], []).append(pdf_path)
+
+            if file_type_to_pages:
+                combine_pdfs_by_type(file_type_to_pages, eps_config)
+
+    except Exception as e:
+        error_logger.error(f"Unexpected error: {e}")
 
 
 # --- Entry Point ---
@@ -411,8 +370,7 @@ if __name__ == "__main__":
 
     # Valores por defecto para pruebas
     if len(sys.argv) == 1:
-        eps = "SALUD TOTAL"
-        file = r"D:\HOSPITAL\SALUD TOTAL\SUBSIDIADO\ELE47722"
+        eps = "NUEVA EPS"
+        file = r"D:\ARMERO\ANA\NUEVA EPS\CONTRIBUTIVO\603746"
         sys.argv.extend([eps, file])
-
     main()
