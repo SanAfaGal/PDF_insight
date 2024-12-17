@@ -1,71 +1,115 @@
 import tkinter as tk
-from tkinter import filedialog, ttk, scrolledtext
+from tkinter import filedialog, messagebox
 import os
-import threading  # Para no bloquear la interfaz mientras se procesan los archivos
 
-# Importar las funciones principales del script
-from config import EPS_CONFIG
-from main import process_input
+# Importar tus funciones existentes
+from main import rename_pdfs_with_prefix, split_pdfs, process_pdfs, combine_and_rename_pdfs, EPS_CONFIG
 
 
 class PDFProcessorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF Processor for EPS")
-        self.root.geometry("600x400")
+        self.root.title("PDF Processor")
+
+        # Variables para las acciones seleccionadas
+        self.rename_var = tk.BooleanVar(value=False)
+        self.split_var = tk.BooleanVar(value=False)
+        self.ocr_var = tk.BooleanVar(value=False)
+        self.combine_var = tk.BooleanVar(value=False)
+
+        # Configuración de EPS
+        self.eps_name_var = tk.StringVar(value="NUEVA EPS")
+
+        # Ruta de entrada
+        self.input_path = ""
+
+        # Interfaz gráfica
         self.create_widgets()
 
     def create_widgets(self):
-        # Etiqueta y ComboBox para EPS
-        tk.Label(self.root, text="Select EPS:", font=("Arial", 12)).pack(pady=10)
-        self.eps_combo = ttk.Combobox(self.root, values=list(EPS_CONFIG.keys()), state="readonly", width=30)
-        self.eps_combo.pack(pady=5)
-        self.eps_combo.current(0)  # Seleccionar la primera opción por defecto
+        # Sección para elegir la ruta de entrada
+        tk.Label(self.root, text="Select Input Folder/File:").grid(row=0, column=0, sticky="w", padx=10, pady=5)
+        tk.Button(self.root, text="Browse", command=self.select_input_path).grid(row=0, column=1, padx=10, pady=5)
+        self.path_label = tk.Label(self.root, text="No path selected", fg="gray")
+        self.path_label.grid(row=1, column=0, columnspan=2, sticky="w", padx=10)
 
-        # Botón para seleccionar carpeta
-        tk.Label(self.root, text="Select Folder:", font=("Arial", 12)).pack(pady=10)
-        self.folder_entry = tk.Entry(self.root, width=50)
-        self.folder_entry.pack(pady=5)
-        tk.Button(self.root, text="Browse", command=self.select_folder).pack(pady=5)
+        # EPS Selection
+        tk.Label(self.root, text="Select EPS:").grid(row=2, column=0, sticky="w", padx=10, pady=5)
+        eps_options = list(EPS_CONFIG.keys())
+        tk.OptionMenu(self.root, self.eps_name_var, *eps_options).grid(row=2, column=1, padx=10, pady=5)
 
-        # Botón de Procesar
-        tk.Button(self.root, text="Process PDFs", command=self.run_processing, bg="green", fg="white").pack(pady=10)
+        # Acciones (Checkbuttons)
+        tk.Label(self.root, text="Select Actions:").grid(row=3, column=0, sticky="w", padx=10, pady=5)
 
-        # Área de logs
-        tk.Label(self.root, text="Logs:", font=("Arial", 12)).pack(pady=5)
-        self.log_area = scrolledtext.ScrolledText(self.root, width=70, height=10)
-        self.log_area.pack(pady=5)
+        tk.Checkbutton(self.root, text="Rename PDFs with Prefix", variable=self.rename_var).grid(row=4, column=0,
+                                                                                                 sticky="w", padx=20)
+        tk.Checkbutton(self.root, text="Split PDFs into Pages", variable=self.split_var).grid(row=5, column=0,
+                                                                                              sticky="w", padx=20)
+        tk.Checkbutton(self.root, text="Extract Text or Apply OCR", variable=self.ocr_var).grid(row=6, column=0,
+                                                                                                sticky="w", padx=20)
+        tk.Checkbutton(self.root, text="Combine and Rename PDFs", variable=self.combine_var).grid(row=7, column=0,
+                                                                                                  sticky="w", padx=20)
 
-    def select_folder(self):
-        folder_selected = filedialog.askdirectory(title="Select Folder Containing PDFs")
-        if folder_selected:
-            self.folder_entry.delete(0, tk.END)
-            self.folder_entry.insert(0, folder_selected)
+        # Botón para ejecutar las acciones seleccionadas
+        tk.Button(self.root, text="Run Selected Actions", command=self.run_selected_actions).grid(row=8, column=0,
+                                                                                                  columnspan=2, pady=10)
 
-    def run_processing(self):
-        # Recuperar valores seleccionados
-        eps_name = self.eps_combo.get()
-        input_path = self.folder_entry.get()
+        # Salida de logs
+        self.log_text = tk.Text(self.root, height=10, width=60, state=tk.DISABLED)
+        self.log_text.grid(row=9, column=0, columnspan=2, padx=10, pady=10)
 
-        if not input_path or not os.path.exists(input_path):
-            self.log("Please select a valid folder path.")
+    def select_input_path(self):
+        """Permite al usuario seleccionar una carpeta o archivo."""
+        self.input_path = filedialog.askdirectory()  # Puedes usar askopenfilename para archivos
+        if self.input_path:
+            self.path_label.config(text=self.input_path, fg="black")
+        else:
+            self.path_label.config(text="No path selected", fg="gray")
+
+    def log_message(self, message):
+        """Muestra mensajes en el área de logs."""
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.insert(tk.END, f"{message}\n")
+        self.log_text.config(state=tk.DISABLED)
+        self.log_text.see(tk.END)
+
+    def run_selected_actions(self):
+        """Ejecuta las acciones seleccionadas por el usuario."""
+        if not self.input_path:
+            messagebox.showerror("Error", "Please select an input folder or file.")
             return
 
-        self.log(f"Processing started for EPS: {eps_name}, Folder: {input_path}")
+        eps_name = self.eps_name_var.get()
+        eps_config = EPS_CONFIG.get(eps_name)
 
-        # Ejecutar el proceso en un hilo separado para no congelar la interfaz
-        threading.Thread(target=self.process_pdfs, args=(eps_name, input_path)).start()
+        if not eps_config:
+            messagebox.showerror("Error", f"Invalid EPS configuration: {eps_name}")
+            return
 
-    def process_pdfs(self, eps_name, input_path):
         try:
-            process_input(input_path, eps_name)
-            self.log("Processing completed successfully!")
-        except Exception as e:
-            self.log(f"Error: {e}")
+            # Ejecutar las acciones en orden
+            if self.rename_var.get():
+                self.log_message("Renaming PDFs with prefix...")
+                rename_pdfs_with_prefix(self.input_path)
 
-    def log(self, message):
-        self.log_area.insert(tk.END, f"{message}\n")
-        self.log_area.see(tk.END)
+            if self.split_var.get():
+                self.log_message("Splitting PDFs into pages...")
+                split_pdfs(self.input_path)
+
+            if self.ocr_var.get():
+                self.log_message("Extracting text or applying OCR...")
+                process_pdfs(self.input_path, eps_config)
+
+            if self.combine_var.get():
+                self.log_message("Combining and renaming PDFs...")
+                combine_and_rename_pdfs(self.input_path, eps_config)
+
+            self.log_message("All selected actions completed successfully.")
+            messagebox.showinfo("Success", "Selected actions completed successfully!")
+
+        except Exception as e:
+            self.log_message(f"Error: {e}")
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
