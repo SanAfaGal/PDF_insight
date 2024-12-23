@@ -139,7 +139,7 @@ class PDFProcessorApp:
 
             if self.ocr_var.get():
                 self.log_message("Extrayendo texto o aplicando OCR...")
-                process_pdfs(input_path, EPS_CONFIG[eps_name])
+                process_pdfs(input_path)
 
             if self.combine_var.get():
                 self.log_message("Combinar y renombrar PDFs...")

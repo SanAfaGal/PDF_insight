@@ -224,7 +224,7 @@ def split_pdfs(input_path):
                 handle_pdf_splitting(pdf_path)
 
 
-def process_pdfs(input_path, eps_config):
+def process_pdfs(input_path):
     """Extracts text from PDFs or applies OCR if text extraction fails."""
     for root, _, files in os.walk(input_path):
         for file in files:
