@@ -1,8 +1,3 @@
-DEFAULT_CONFIG = {
-    "NIT": "800125697",
-    # "PREFIX": "ELE",
-}
-
 KEYWORDS = {
     "FACTURA": ["PERIODO FACTURADO", "FACTURA DE VENTA ELECTRONICA"],
     "EPICRISIS": ["HISTORIA ELECTRONICA", "RESUMEN EPICRISIS"],
@@ -23,7 +18,6 @@ COMPOSITIONS = {
 
 EPS_CONFIG = {
     "NUEVA EPS": {
-        **DEFAULT_CONFIG,
         "TYPES": {
             "FVS": KEYWORDS["FACTURA"],
             "EPI": KEYWORDS["EPICRISIS"],
@@ -36,7 +30,6 @@ EPS_CONFIG = {
         "FILENAME_FORMAT": "{file_type}_{NIT}_{PREFIX}{invoice}.pdf"
     },
     "SALUD TOTAL": {
-        **DEFAULT_CONFIG,
         "SUFFIX": "1",
         "TYPES": {
             1: KEYWORDS["FACTURA"],
@@ -47,5 +40,19 @@ EPS_CONFIG = {
             17: KEYWORDS["ADRES"],
         },
         "FILENAME_FORMAT": "{NIT}_{PREFIX}_{invoice}_{file_type}_{SUFFIX}.pdf"
+    }
+}
+
+HOSPITAL_CONFIG = {
+    "NELSON RESTREPO MARTINEZ": {
+        "NIT": "800125697",
+    },
+    "SAN ANTONIO": {
+        "NIT": "890702408",
+        "PREFIX": "FE",
+    },
+    "NUESTRA SEÑORA DEL CARMEN": {
+        "NIT": "890702241",
+        "PREFIX": "ELE",
     }
 }
