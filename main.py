@@ -144,9 +144,13 @@ def split_pdf_by_page(pdf_path: str) -> List[str]:
     try:
         with open(pdf_path, "rb") as file:
             reader = PdfReader(file)
+
+            # If the PDF has only one page, return an empty list (indicating no splitting needed)
             if len(reader.pages) == 1:
                 info_logger.info(f"Skipping splitting for single-page PDF: {pdf_path}")
                 return [pdf_path]  # Return the original file in the list without splitting
+
+            # If the PDF has more than one page, proceed to split
             for i, page in enumerate(reader.pages):
                 page_pdf_path = f"{os.path.splitext(pdf_path)[0]}_page_{i + 1}.pdf"
                 writer = PdfWriter()
@@ -157,7 +161,7 @@ def split_pdf_by_page(pdf_path: str) -> List[str]:
         return page_paths
     except Exception as e:
         error_logger.error(f"Error splitting PDF {pdf_path} into pages: {e}")
-        return []
+        return []  # Return an empty list if there is an error
 
 
 def combine_pdfs(pdf_paths: List[str], output_path: str) -> None:
@@ -271,8 +275,8 @@ def handle_pdf_splitting(pdf_path: str) -> None:
     Returns:
         None
     """
-
     page_paths = split_pdf_by_page(pdf_path)
+
     if not page_paths:
         error_logger.error(f"Failed to split {pdf_path}. Skipping.")
         return
@@ -283,6 +287,7 @@ def handle_pdf_splitting(pdf_path: str) -> None:
             info_logger.info(f"Deleted original file after splitting: {pdf_path}")
         except Exception as e:
             error_logger.error(f"Error deleting original file {pdf_path}: {e}")
+    return
 
 
 def process_text_for_file_type(text: str, eps_config: Dict) -> Optional[str]:
@@ -353,9 +358,8 @@ def split_pdfs(input_path: str) -> None:
     """
     for root, _, files in os.walk(input_path):
         for file in files:
-            if file.startswith('original_') and file.endswith('.pdf'):
-                pdf_path = os.path.join(root, file)
-                handle_pdf_splitting(pdf_path)
+            pdf_path = os.path.join(root, file)
+            handle_pdf_splitting(pdf_path)
 
 
 def process_pdfs(input_path: str) -> None:
