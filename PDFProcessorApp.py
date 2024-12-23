@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
-from main import rename_pdfs_with_prefix, split_pdfs, process_pdfs, combine_and_rename_pdfs, EPS_CONFIG
+from config import HOSPITAL_CONFIG, EPS_CONFIG
+from main import rename_pdfs_with_prefix, split_pdfs, process_pdfs, combine_and_rename_pdfs
 
 
 class PDFProcessorApp:
@@ -55,7 +56,7 @@ class PDFProcessorApp:
 
         # Selección de Hospital
         ctk.CTkLabel(self.root, text="Seleccionar Hospital:").grid(row=4, column=0, sticky="w", padx=10, pady=5)
-        hospital_options = ["Hospital A", "Hospital B", "Hospital C"]  # Lista de ejemplo
+        hospital_options = [""] + list(HOSPITAL_CONFIG.keys())  # Agregar una opción vacía
         self.hospital_dropdown = ctk.CTkOptionMenu(self.root, values=hospital_options, variable=self.hospital_name_var)
         self.hospital_dropdown.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
 
@@ -142,7 +143,7 @@ class PDFProcessorApp:
 
             if self.combine_var.get():
                 self.log_message("Combinar y renombrar PDFs...")
-                combine_and_rename_pdfs(input_path, EPS_CONFIG[eps_name])
+                combine_and_rename_pdfs(input_path, EPS_CONFIG[eps_name], HOSPITAL_CONFIG[hospital_name])
 
             self.log_message("Todas las acciones seleccionadas se completaron exitosamente.")
 

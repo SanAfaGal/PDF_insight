@@ -1,4 +1,3 @@
-import argparse
 import os
 import re
 from typing import Dict, List, Optional
@@ -9,7 +8,6 @@ from PyPDF2.errors import PdfReadError
 from rapidfuzz import fuzz
 from unidecode import unidecode
 
-from config import *
 from utils.log_utils import setup_logging
 
 info_logger, error_logger = setup_logging()
@@ -155,14 +153,13 @@ def determine_file_type(text, keywords, similarity_threshold=80):
 
 
 # --- File Renaming ---
-def generate_new_filename(invoice, file_type, eps_config):
+def generate_new_filename(invoice, file_type, eps_config, hospital_config):
     """Generates a new filename based on EPS configuration."""
     return eps_config["FILENAME_FORMAT"].format(
         file_type=file_type,
-        NIT=eps_config["NIT"],
-        PREFIX=eps_config.get("PREFIX", ""),
-        invoice=invoice,
-        SUFFIX=eps_config.get("SUFFIX", "")
+        NIT=hospital_config["NIT"],
+        PREFIX=hospital_config.get("PREFIX", ""),
+        invoice=invoice
     )
 
 
@@ -198,9 +195,9 @@ def process_text_for_file_type(text, eps_config):
     return file_type
 
 
-def generate_new_file_path(pdf_path, file_type, invoice, eps_config):
+def generate_new_file_path(pdf_path, file_type, invoice, eps_config, hospital_config):
     """Generates the new file path with the new filename."""
-    new_filename = generate_new_filename(invoice, file_type, eps_config)
+    new_filename = generate_new_filename(invoice, file_type, eps_config, hospital_config)
     new_pdf_path = os.path.join(os.path.dirname(pdf_path), new_filename)
     return new_pdf_path
 
@@ -300,7 +297,7 @@ def process_pdf_file(pdf_path: str, eps_config: Dict) -> Optional[Dict]:
         error_logger.error(f"Error processing {pdf_path}: {e}")
 
 
-def combine_pdfs_by_type(file_type_to_pages: Dict[str, List[str]], eps_config: Dict) -> None:
+def combine_pdfs_by_type(file_type_to_pages: Dict[str, List[str]], eps_config: Dict, hospital_config: Dict) -> None:
     """
     Combina PDF por tipo de archivo y renombra los archivos combinados.
 
@@ -314,7 +311,7 @@ def combine_pdfs_by_type(file_type_to_pages: Dict[str, List[str]], eps_config: D
         combine_pdfs(related_pages, combined_path)
 
         invoice = extract_invoice_number(os.path.basename(os.path.dirname(related_pages[0])))
-        new_pdf_path = generate_new_file_path(related_pages[0], file_type, invoice, eps_config)
+        new_pdf_path = generate_new_file_path(related_pages[0], file_type, invoice, eps_config, hospital_config)
 
         try:
             os.rename(combined_path, new_pdf_path)
@@ -323,13 +320,14 @@ def combine_pdfs_by_type(file_type_to_pages: Dict[str, List[str]], eps_config: D
             error_logger.error(f"Error renaming {combined_path}: {e}")
 
 
-def combine_and_rename_pdfs(input_path: str, eps_config: Dict) -> None:
+def combine_and_rename_pdfs(input_path: str, eps_config: Dict, hospital_config: Dict) -> None:
     """
     Combina PDFs por tipo de archivo y renombra los archivos combinados.
 
     Args:
         input_path (str): Path to the input directory or file.
         eps_config (Dict): Configuration dictionary containing file type mappings.
+        :param hospital_config:
 
     """
     try:
@@ -343,34 +341,7 @@ def combine_and_rename_pdfs(input_path: str, eps_config: Dict) -> None:
                     file_type_to_pages.setdefault(result['file_type'], []).append(pdf_path)
 
             if file_type_to_pages:
-                combine_pdfs_by_type(file_type_to_pages, eps_config)
+                combine_pdfs_by_type(file_type_to_pages, eps_config, hospital_config)
 
     except Exception as e:
         error_logger.error(f"Unexpected error: {e}")
-
-
-# --- Entry Point ---
-def main():
-    """Main entry point of the script."""
-    parser = argparse.ArgumentParser(description="Process and rename PDFs based on EPS configurations.")
-    parser.add_argument("eps_name", help="EPS name", choices=EPS_CONFIG.keys())
-    parser.add_argument("input_path", help="Path to a folder or a single file")
-    args = parser.parse_args()
-
-    input_path = clean_path(args.input_path)
-    if not os.path.exists(input_path):
-        print(f"The path '{input_path}' does not exist. Exiting.")
-        return
-
-    process_input(input_path, args.eps_name)
-
-
-if __name__ == "__main__":
-    import sys
-
-    # Valores por defecto para pruebas
-    if len(sys.argv) == 1:
-        eps = "NUEVA EPS"
-        file = r"D:\ARMERO\ANA\NUEVA EPS\CONTRIBUTIVO\603746"
-        sys.argv.extend([eps, file])
-    main()
