@@ -30,7 +30,6 @@ EPS_CONFIG = {
         "FILENAME_FORMAT": "{file_type}_{NIT}_{PREFIX}{invoice}.pdf"
     },
     "SALUD TOTAL": {
-        "SUFFIX": "1",
         "TYPES": {
             1: KEYWORDS["FACTURA"],
             5: KEYWORDS["EPICRISIS"],
@@ -39,7 +38,7 @@ EPS_CONFIG = {
             15: KEYWORDS["COMPROBANTE"],
             17: KEYWORDS["ADRES"],
         },
-        "FILENAME_FORMAT": "{NIT}_{PREFIX}_{invoice}_{file_type}_{SUFFIX}.pdf"
+        "FILENAME_FORMAT": "{NIT}_{PREFIX}_{invoice}_{file_type}_1.pdf"
     }
 }
 
