@@ -202,31 +202,6 @@ def generate_new_file_path(pdf_path, file_type, invoice, eps_config, hospital_co
     return new_pdf_path
 
 
-# --- Main Processing ---
-# def process_input(input_path, eps_name):
-#     """Processes a folder or single PDF file and renames files based on EPS configuration."""
-#     eps_config = EPS_CONFIG.get(eps_name)
-#     if not eps_config:
-#         error_logger.error(f"Unsupported EPS: {eps_name}")
-#         return
-#
-#     if os.path.isdir(input_path):
-#         # Add a prefix to all PDFs before processing
-#         rename_pdfs_with_prefix(input_path)
-#
-#         # Split PDF files if necessary
-#         split_pdfs(input_path)
-#
-#         # Extract text or apply OCR if text extraction fails
-#         process_pdfs(input_path, eps_config)
-#
-#         # Combine PDFs by file type, rename, and handle the output
-#         combine_and_rename_pdfs(input_path, eps_config)
-#
-#     else:
-#         error_logger.error(f"Invalid path: {input_path}")
-
-
 def rename_pdfs_with_prefix(input_path):
     """Adds a temporary prefix to all PDFs in the directory."""
     for root, _, files in os.walk(input_path):
