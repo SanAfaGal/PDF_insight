@@ -94,24 +94,6 @@ def extract_text_from_pdf(pdf_path: str) -> Optional[str]:
     return None
 
 
-def extract_patient_id(text: str) -> Optional[str]:
-    """
-    Extracts the patient ID from the text using a regex pattern.
-
-    Args:
-        text (str): The text to search for the patient ID.
-
-    Returns:
-        Optional[str]: The extracted patient ID, or None if not found.
-    """
-    text = re.sub(r"\s+", "", text)
-    id_pattern = r"(TI|CC|RC)-(\d{5,15})"
-    match = re.search(id_pattern, text)
-    if match:
-        return match.group(2)
-    return None
-
-
 def apply_ocr(pdf_path: str) -> None:
     """
     Applies OCR to a PDF and returns the path to the searchable PDF.
@@ -407,12 +389,7 @@ def process_pdf_file(pdf_path: str, eps_config: Dict) -> Optional[Dict]:
         if not file_type:
             error_logger.error(f"No valid keyword found in {pdf_path}. Skipping.")
 
-        patient_id = extract_patient_id(text)
-
-        if not patient_id:
-            info_logger.warning(f"No Patient ID found in text for file type {file_type}")
-
-        return {'file_type': file_type, 'invoice': invoice, 'patient_id': patient_id}
+        return {'file_type': file_type, 'invoice': invoice}
 
     except Exception as e:
         error_logger.error(f"Error processing {pdf_path}: {e}")
